@@ -1,6 +1,8 @@
+// UpdateCitaController.go
 package infrastructure
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -50,9 +52,12 @@ func (ctrl *UpdateCitaController) Run(c *gin.Context) {
 	cita := entities.NewCita("", "", "", "", "", "", citaRequest.Estado)
 	cita.CitaID = int32(id)
 
+	log.Printf("Actualizando cita con ID %d a estado %s", cita.CitaID, cita.Estado)
+
 	// Llamar al caso de uso para actualizar la cita
-	updatedCita, err := ctrl.updateUseCase.Run(cita)
+	err = ctrl.updateUseCase.Run(cita)
 	if err != nil {
+		log.Printf("Error al actualizar la cita: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "No se pudo actualizar la cita",
 			"error":   err.Error(),
@@ -61,5 +66,7 @@ func (ctrl *UpdateCitaController) Run(c *gin.Context) {
 	}
 
 	// Devolver la cita actualizada
-	c.JSON(http.StatusOK, updatedCita)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Estado de la cita actualizado correctamente",
+	})
 }

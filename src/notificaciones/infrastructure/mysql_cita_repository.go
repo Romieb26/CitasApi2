@@ -44,31 +44,34 @@ func (mysql *MySQLCitaRepository) Save(cita *entities.Cita) error {
 
 func (mysql *MySQLCitaRepository) Update(cita *entities.Cita) error {
 	query := `
-		UPDATE Cita
-		SET estado = ?
-		WHERE cita_id = ?
-	`
+        UPDATE Cita
+        SET estado = ?
+        WHERE cita_id = ?
+    `
+	log.Printf("Ejecutando query: %s con estado %s y ID %d", query, cita.Estado, cita.CitaID)
+
 	result, err := mysql.conn.Exec(
 		query,
 		cita.Estado,
 		cita.CitaID,
 	)
 	if err != nil {
-		log.Println("Error al actualizar la cita:", err)
+		log.Printf("Error al ejecutar la query: %v", err)
 		return err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Println("Error al obtener filas afectadas:", err)
+		log.Printf("Error al obtener filas afectadas: %v", err)
 		return err
 	}
 
 	if rowsAffected == 0 {
-		log.Println("No se encontró la cita con ID:", cita.CitaID)
+		log.Printf("No se encontró la cita con ID: %d", cita.CitaID)
 		return fmt.Errorf("cita con ID %d no encontrada", cita.CitaID)
 	}
 
+	log.Printf("Cita con ID %d actualizada correctamente", cita.CitaID)
 	return nil
 }
 
