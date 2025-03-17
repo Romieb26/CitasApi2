@@ -22,8 +22,8 @@ func NewMySQLCitaRepository() repositories.ICita {
 
 func (mysql *MySQLCitaRepository) Save(cita *entities.Cita) error {
 	query := `
-		INSERT INTO Cita (nombre_paciente, apellido_paciente, numero_contacto, area_cita, fecha, hora)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO Cita (nombre_paciente, apellido_paciente, numero_contacto, area_cita, fecha, hora, estado)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := mysql.conn.Exec(
 		query,
@@ -33,6 +33,7 @@ func (mysql *MySQLCitaRepository) Save(cita *entities.Cita) error {
 		cita.AreaCita,
 		cita.Fecha,
 		cita.Hora,
+		"pendiente",
 	)
 	if err != nil {
 		log.Println("Error al guardar la cita:", err)
@@ -44,7 +45,7 @@ func (mysql *MySQLCitaRepository) Save(cita *entities.Cita) error {
 func (mysql *MySQLCitaRepository) Update(cita *entities.Cita) error {
 	query := `
 		UPDATE Cita
-		SET nombre_paciente = ?, apellido_paciente = ?, numero_contacto = ?, area_cita = ?, fecha = ?, hora = ?
+		SET nombre_paciente = ?, apellido_paciente = ?, numero_contacto = ?, area_cita = ?, fecha = ?, hora = ?, estado = ?
 		WHERE cita_id = ?
 	`
 	result, err := mysql.conn.Exec(
@@ -55,6 +56,7 @@ func (mysql *MySQLCitaRepository) Update(cita *entities.Cita) error {
 		cita.AreaCita,
 		cita.Fecha,
 		cita.Hora,
+		cita.Estado,
 		cita.CitaID,
 	)
 	if err != nil {
@@ -100,7 +102,7 @@ func (mysql *MySQLCitaRepository) Delete(id int32) error {
 
 func (mysql *MySQLCitaRepository) GetById(id int32) (*entities.Cita, error) {
 	query := `
-		SELECT cita_id, nombre_paciente, apellido_paciente, numero_contacto, area_cita, fecha, hora
+		SELECT cita_id, nombre_paciente, apellido_paciente, numero_contacto, area_cita, fecha, hora, estado
 		FROM Cita
 		WHERE cita_id = ?
 	`
@@ -115,6 +117,7 @@ func (mysql *MySQLCitaRepository) GetById(id int32) (*entities.Cita, error) {
 		&cita.AreaCita,
 		&cita.Fecha,
 		&cita.Hora,
+		&cita.Estado,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -130,7 +133,7 @@ func (mysql *MySQLCitaRepository) GetById(id int32) (*entities.Cita, error) {
 
 func (mysql *MySQLCitaRepository) GetAll() ([]entities.Cita, error) {
 	query := `
-		SELECT cita_id, nombre_paciente, apellido_paciente, numero_contacto, area_cita, fecha, hora
+		SELECT cita_id, nombre_paciente, apellido_paciente, numero_contacto, area_cita, fecha, hora, estado
 		FROM Cita
 	`
 	rows, err := mysql.conn.Query(query)
@@ -151,6 +154,7 @@ func (mysql *MySQLCitaRepository) GetAll() ([]entities.Cita, error) {
 			&cita.AreaCita,
 			&cita.Fecha,
 			&cita.Hora,
+			&cita.Estado,
 		)
 		if err != nil {
 			log.Println("Error al escanear la cita:", err)

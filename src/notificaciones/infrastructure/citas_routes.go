@@ -20,7 +20,7 @@ func (router *CitaRouter) Run() {
 	createController, getByIdController, updateController, deleteController, getAllController := InitCitaDependencies()
 
 	// Grupo de rutas para citas
-	citaGroup := router.engine.Group("/citas")
+	citaGroup := router.engine.Group("/notificacion")
 	{
 		citaGroup.POST("/", createController.Run)
 		citaGroup.GET("/:id", getByIdController.Run)

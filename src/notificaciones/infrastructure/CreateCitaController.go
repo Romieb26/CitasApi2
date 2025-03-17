@@ -28,6 +28,7 @@ func (ctrl *CreateCitaController) Run(c *gin.Context) {
 		AreaCita         string `json:"areaCita"`
 		Fecha            string `json:"fecha"`
 		Hora             string `json:"hora"`
+		Estado           string `json:"estado"`
 	}
 
 	if err := c.ShouldBindJSON(&citaRequest); err != nil {
@@ -45,6 +46,7 @@ func (ctrl *CreateCitaController) Run(c *gin.Context) {
 		citaRequest.AreaCita,
 		citaRequest.Fecha,
 		citaRequest.Hora,
+		citaRequest.Estado,
 	)
 
 	createdCita, err := ctrl.createUseCase.Run(cita)

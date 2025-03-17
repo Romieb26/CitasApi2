@@ -9,6 +9,7 @@ type Cita struct {
 	AreaCita         string `json:"areaCita" gorm:"type:enum('Medicina General', 'Pediatría', 'Oftalmología', 'Dermatología', 'Cardiología');not null"`
 	Fecha            string `json:"fecha" gorm:"column:fecha;not null"`
 	Hora             string `json:"hora" gorm:"column:hora;not null"`
+	Estado           string `json:"estado" gorm:"column:estado;not null;default:'pendiente'"`
 }
 
 // Setters
@@ -34,6 +35,10 @@ func (c *Cita) SetFecha(fecha string) {
 
 func (c *Cita) SetHora(hora string) {
 	c.Hora = hora
+}
+
+func (c *Cita) SetEstado(estado string) {
+	c.Estado = estado
 }
 
 // Getters
@@ -65,7 +70,11 @@ func (c *Cita) GetHora() string {
 	return c.Hora
 }
 
-func NewCita(nombrePaciente, apellidoPaciente, numeroContacto, areaCita, fecha, hora string) *Cita {
+func (c *Cita) GetEstado() string {
+	return c.Estado
+}
+
+func NewCita(nombrePaciente, apellidoPaciente, numeroContacto, areaCita, fecha, hora, estado string) *Cita {
 	return &Cita{
 		NombrePaciente:   nombrePaciente,
 		ApellidoPaciente: apellidoPaciente,
@@ -73,5 +82,6 @@ func NewCita(nombrePaciente, apellidoPaciente, numeroContacto, areaCita, fecha, 
 		AreaCita:         areaCita,
 		Fecha:            fecha,
 		Hora:             hora,
+		Estado:           estado,
 	}
 }
