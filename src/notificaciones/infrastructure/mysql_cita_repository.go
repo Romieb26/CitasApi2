@@ -45,17 +45,11 @@ func (mysql *MySQLCitaRepository) Save(cita *entities.Cita) error {
 func (mysql *MySQLCitaRepository) Update(cita *entities.Cita) error {
 	query := `
 		UPDATE Cita
-		SET nombre_paciente = ?, apellido_paciente = ?, numero_contacto = ?, area_cita = ?, fecha = ?, hora = ?, estado = ?
+		SET estado = ?
 		WHERE cita_id = ?
 	`
 	result, err := mysql.conn.Exec(
 		query,
-		cita.NombrePaciente,
-		cita.ApellidoPaciente,
-		cita.NumeroContacto,
-		cita.AreaCita,
-		cita.Fecha,
-		cita.Hora,
 		cita.Estado,
 		cita.CitaID,
 	)

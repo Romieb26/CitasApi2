@@ -1,4 +1,3 @@
-// UpdateCitaController.go
 package infrastructure
 
 import (
@@ -6,7 +5,7 @@ import (
 	"strconv"
 
 	"notificaciones/src/notificaciones/application"
-	"notificaciones/src/notificaciones/domain/entities" // Importar el paquete entities
+	"notificaciones/src/notificaciones/domain/entities"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,6 +21,7 @@ func NewUpdateCitaController(updateUseCase *application.UpdateCitaUseCase) *Upda
 }
 
 func (ctrl *UpdateCitaController) Run(c *gin.Context) {
+	// Obtener el ID de la cita desde los parámetros de la URL
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
@@ -32,16 +32,12 @@ func (ctrl *UpdateCitaController) Run(c *gin.Context) {
 		return
 	}
 
+	// Definir la estructura de la solicitud JSON
 	var citaRequest struct {
-		NombrePaciente   string `json:"nombrePaciente"`
-		ApellidoPaciente string `json:"apellidoPaciente"`
-		NumeroContacto   string `json:"numeroContacto"`
-		AreaCita         string `json:"areaCita"`
-		Fecha            string `json:"fecha"`
-		Hora             string `json:"hora"`
-		Estado           string `json:"estado"`
+		Estado string `json:"estado"`
 	}
 
+	// Parsear el JSON de la solicitud
 	if err := c.ShouldBindJSON(&citaRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Datos inválidos",
@@ -50,17 +46,11 @@ func (ctrl *UpdateCitaController) Run(c *gin.Context) {
 		return
 	}
 
-	cita := entities.NewCita( // Usar entities.NewCita
-		citaRequest.NombrePaciente,
-		citaRequest.ApellidoPaciente,
-		citaRequest.NumeroContacto,
-		citaRequest.AreaCita,
-		citaRequest.Fecha,
-		citaRequest.Hora,
-		citaRequest.Estado,
-	)
+	// Crear una nueva entidad Cita con el ID y el estado proporcionado
+	cita := entities.NewCita("", "", "", "", "", "", citaRequest.Estado)
 	cita.CitaID = int32(id)
 
+	// Llamar al caso de uso para actualizar la cita
 	updatedCita, err := ctrl.updateUseCase.Run(cita)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -70,5 +60,6 @@ func (ctrl *UpdateCitaController) Run(c *gin.Context) {
 		return
 	}
 
+	// Devolver la cita actualizada
 	c.JSON(http.StatusOK, updatedCita)
 }
