@@ -1,4 +1,4 @@
-// citas.go
+// notificaciones.go
 package entities
 
 type Cita struct {
