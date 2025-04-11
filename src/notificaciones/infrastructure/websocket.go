@@ -134,7 +134,7 @@ func (h *Hub) HandleWebSocket(c *gin.Context) {
 func GetWebSocketURL() string {
 	env := os.Getenv("APP_ENV")
 	if env == "production" {
-		return "ws://34.237.191.108/ws" // Cambia a wss:// si usas SSL
+		return "ws://34.237.191.108:8001/ws" // Cambia a wss:// si usas SSL
 	}
 	return "ws://localhost:8001/ws" // Para desarrollo local
 }
