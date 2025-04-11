@@ -3,13 +3,18 @@ package core
 
 import (
 	"log"
+	"sync"
 
 	"github.com/streadway/amqp"
 )
 
-var RabbitMQConn *amqp.Connection
+var (
+	RabbitMQConn *amqp.Connection
+	channelMutex sync.Mutex
+	channels     []*amqp.Channel // Para manejar múltiples canales si es necesario
+)
 
-// InitRabbitMQ inicializa la conexión a RabbitMQ
+// InitRabbitMQ inicializa la conexión principal a RabbitMQ
 func InitRabbitMQ() {
 	conn, err := amqp.Dial("amqp://romina:romina264@3.230.241.180:5672/")
 	if err != nil {
@@ -19,49 +24,85 @@ func InitRabbitMQ() {
 	log.Println("Conectado a RabbitMQ")
 }
 
-// ConsumeMessages consume mensajes de la cola "citas_creadas"
+// ConsumeMessages consume mensajes de forma persistente
 func ConsumeMessages(queueName string, handler func([]byte)) error {
+	channelMutex.Lock()
+	defer channelMutex.Unlock()
+
 	ch, err := RabbitMQConn.Channel()
 	if err != nil {
 		return err
 	}
-	defer ch.Close()
 
-	// Declarar la cola (por si no existe)
+	// Guardar el canal para cerrarlo luego
+	channels = append(channels, ch)
+
+	// Configurar QoS para evitar sobrecarga
+	err = ch.Qos(
+		1,     // prefetch count
+		0,     // prefetch size
+		false, // global
+	)
+	if err != nil {
+		return err
+	}
+
+	// Declarar la cola con características específicas
 	_, err = ch.QueueDeclare(
-		queueName, // nombre de la cola
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
+		queueName,
+		true,  // durable
+		false, // autoDelete
+		false, // exclusive
+		false, // noWait
+		nil,
 	)
 	if err != nil {
 		return err
 	}
 
-	// Configurar el canal para consumir mensajes
 	msgs, err := ch.Consume(
-		queueName, // nombre de la cola
-		"",        // consumer
-		true,      // auto-ack (reconocimiento automático)
-		false,     // exclusive
-		false,     // no-local
-		false,     // no-wait
-		nil,       // arguments
+		queueName,
+		"",    // consumerTag (auto-generado)
+		false, // autoAck (MANUAL ahora)
+		false, // exclusive
+		false, // noLocal
+		false, // noWait
+		nil,
 	)
 	if err != nil {
 		return err
 	}
 
-	// Procesar los mensajes recibidos
+	// Goroutine permanente para escuchar mensajes
 	go func() {
 		for msg := range msgs {
 			log.Printf("Mensaje recibido: %s", msg.Body)
-			handler(msg.Body) // Llamar al manejador de mensajes
+			handler(msg.Body)
+
+			// Ack manual SOLO si el procesamiento fue exitoso
+			if err := msg.Ack(false); err != nil {
+				log.Printf("Error confirmando mensaje: %v", err)
+			}
 		}
+		log.Println("Canal cerrado, reconectando...")
 	}()
 
 	log.Printf("Escuchando mensajes en la cola %s...", queueName)
 	return nil
+}
+
+// CloseChannels cierra todas las conexiones al apagar
+func CloseChannels() {
+	channelMutex.Lock()
+	defer channelMutex.Unlock()
+
+	for _, ch := range channels {
+		if err := ch.Close(); err != nil {
+			log.Printf("Error cerrando canal: %v", err)
+		}
+	}
+
+	if RabbitMQConn != nil {
+		RabbitMQConn.Close()
+	}
 }
