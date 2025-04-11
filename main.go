@@ -41,7 +41,7 @@ func main() {
 		hub.HandleWebSocket(c)
 	})
 
-	// Iniciar consumidor RabbitMQ con WebSocket
+	// Iniciar consumidor RabbitMQ con WebSocket zd
 	go func() {
 		err := core.ConsumeMessages("citas_creadas", func(body []byte) {
 			application.ProcessCitaMessage(body, hub) // Pasamos el hub aquí
