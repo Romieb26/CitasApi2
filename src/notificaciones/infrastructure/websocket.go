@@ -3,8 +3,6 @@ package infrastructure
 import (
 	"log"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -13,6 +11,11 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		// Permite todas las conexiones (para desarrollo y pruebas)
+		// En producción deberías restringir esto a tus dominios
+		return true
+	},
 }
 
 type Hub struct {
@@ -31,21 +34,18 @@ func NewHub() *Hub {
 	}
 }
 
-// SendMessage envía un mensaje a todos los clientes conectados
 func (h *Hub) SendMessage(message []byte) {
 	h.broadcast <- message
 }
 
-// Run inicia el hub para manejar conexiones WebSocket
 func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
 			h.clients[client] = true
-			log.Printf("Nuevo cliente WebSocket conectado. Total: %d", len(h.clients))
+			log.Printf("Nuevo cliente conectado. Total: %d", len(h.clients))
 
-			// Envía un mensaje de bienvenida
-			welcomeMsg := []byte("Conexión WebSocket establecida con el servidor")
+			welcomeMsg := []byte("Conexión WebSocket establecida")
 			if err := client.WriteMessage(websocket.TextMessage, welcomeMsg); err != nil {
 				log.Printf("Error enviando mensaje de bienvenida: %v", err)
 			}
@@ -54,14 +54,14 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				client.Close()
-				log.Printf("Cliente WebSocket desconectado. Total: %d", len(h.clients))
+				log.Printf("Cliente desconectado. Total: %d", len(h.clients))
 			}
 
 		case message := <-h.broadcast:
 			for client := range h.clients {
 				err := client.WriteMessage(websocket.TextMessage, message)
 				if err != nil {
-					log.Printf("Error enviando mensaje a cliente: %v", err)
+					log.Printf("Error enviando mensaje: %v", err)
 					client.Close()
 					delete(h.clients, client)
 				}
@@ -70,38 +70,10 @@ func (h *Hub) Run() {
 	}
 }
 
-// HandleWebSocket maneja las conexiones WebSocket entrantes
 func (h *Hub) HandleWebSocket(c *gin.Context) {
-	// Configuración dinámica de CheckOrigin
-	upgrader.CheckOrigin = func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
-
-		// Permitir todos los orígenes en desarrollo
-		if os.Getenv("APP_ENV") == "development" {
-			return true
-		}
-
-		// Lista de dominios permitidos en producción
-		allowedDomains := []string{
-			"34.237.191.108", // Tu instancia AWS
-			"tudominio.com",  // Reemplaza con tu dominio real
-			"localhost",      // Para desarrollo local
-		}
-
-		// Verificar si el origen está en la lista de permitidos
-		for _, domain := range allowedDomains {
-			if strings.Contains(origin, domain) {
-				return true
-			}
-		}
-
-		log.Printf("Intento de conexión desde origen no permitido: %s", origin)
-		return false
-	}
-
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Printf("Error al actualizar a WebSocket: %v", err)
+		log.Printf("Error al establecer WebSocket: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "No se pudo establecer conexión WebSocket",
 			"details": err.Error(),
@@ -109,16 +81,13 @@ func (h *Hub) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Registrar la nueva conexión
 	h.register <- conn
 
-	// Configurar función de limpieza cuando se cierre la conexión
 	defer func() {
 		h.unregister <- conn
 		conn.Close()
 	}()
 
-	// Mantener la conexión activa
 	for {
 		_, _, err := conn.ReadMessage()
 		if err != nil {
@@ -130,11 +99,6 @@ func (h *Hub) HandleWebSocket(c *gin.Context) {
 	}
 }
 
-// GetWebSocketURL devuelve la URL correcta del WebSocket
 func GetWebSocketURL() string {
-	env := os.Getenv("APP_ENV")
-	if env == "production" {
-		return "ws://34.237.191.108:8001/ws" // Cambia a wss:// si usas SSL
-	}
-	return "ws://localhost:8001/ws" // Para desarrollo local
+	return "ws://34.237.191.108:8001/ws" // Usa esta URL en todos los entornos
 }
