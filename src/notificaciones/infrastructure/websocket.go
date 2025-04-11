@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -12,11 +13,6 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		// En producción, deberías validar los orígenes permitidos
-		// Por ahora permitimos todos para pruebas
-		return true
-	},
 }
 
 type Hub struct {
@@ -76,22 +72,40 @@ func (h *Hub) Run() {
 
 // HandleWebSocket maneja las conexiones WebSocket entrantes
 func (h *Hub) HandleWebSocket(c *gin.Context) {
-	// Obtener el hostname de la variable de entorno o usar el default
-	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
-	if allowedOrigin == "" {
-		allowedOrigin = "http://34.237.191.108" // Tu IP de AWS
-	}
-
-	// Configurar CheckOrigin dinámicamente
+	// Configuración dinámica de CheckOrigin
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
-		return origin == allowedOrigin || origin == "http://localhost:4200" // Para desarrollo
+
+		// Permitir todos los orígenes en desarrollo
+		if os.Getenv("APP_ENV") == "development" {
+			return true
+		}
+
+		// Lista de dominios permitidos en producción
+		allowedDomains := []string{
+			"34.237.191.108", // Tu instancia AWS
+			"tudominio.com",  // Reemplaza con tu dominio real
+			"localhost",      // Para desarrollo local
+		}
+
+		// Verificar si el origen está en la lista de permitidos
+		for _, domain := range allowedDomains {
+			if strings.Contains(origin, domain) {
+				return true
+			}
+		}
+
+		log.Printf("Intento de conexión desde origen no permitido: %s", origin)
+		return false
 	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("Error al actualizar a WebSocket: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No se pudo establecer conexión WebSocket"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "No se pudo establecer conexión WebSocket",
+			"details": err.Error(),
+		})
 		return
 	}
 
@@ -106,7 +120,6 @@ func (h *Hub) HandleWebSocket(c *gin.Context) {
 
 	// Mantener la conexión activa
 	for {
-		// Leer mensaje (solo para mantener la conexión activa)
 		_, _, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -117,7 +130,7 @@ func (h *Hub) HandleWebSocket(c *gin.Context) {
 	}
 }
 
-// GetWebSocketURL devuelve la URL correcta del WebSocket según el entorno
+// GetWebSocketURL devuelve la URL correcta del WebSocket
 func GetWebSocketURL() string {
 	env := os.Getenv("APP_ENV")
 	if env == "production" {
