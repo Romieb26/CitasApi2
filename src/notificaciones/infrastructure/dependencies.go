@@ -1,4 +1,3 @@
-// dependencies.go
 package infrastructure
 
 import (

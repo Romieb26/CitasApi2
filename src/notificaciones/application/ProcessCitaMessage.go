@@ -8,9 +8,14 @@ import (
 	"notificaciones/src/notificaciones/domain/entities"
 )
 
-// ProcessCitaMessage procesa los mensajes recibidos de la cola "citas_creadas"
-func ProcessCitaMessage(message []byte) {
-	// Deserializar el mensaje en una estructura Cita
+// Definición de interfaz para evitar dependencia circular
+type MessageBroadcaster interface {
+	SendMessage(message []byte)
+}
+
+// ProcessCitaMessage procesa los mensajes y envía por WebSocket
+func ProcessCitaMessage(message []byte, broadcaster MessageBroadcaster) {
+	// Deserializar el mensaje
 	var cita entities.Cita
 	err := json.Unmarshal(message, &cita)
 	if err != nil {
@@ -18,6 +23,14 @@ func ProcessCitaMessage(message []byte) {
 		return
 	}
 
-	// Loggear la cita recibida
-	log.Printf("Cita recibida: %+v", cita)
+	// Convertir a JSON para WebSocket
+	jsonData, err := json.Marshal(cita)
+	if err != nil {
+		log.Printf("Error serializando cita: %v", err)
+		return
+	}
+
+	// Enviar a todos los clientes WebSocket
+	broadcaster.SendMessage(jsonData)
+	log.Printf("Cita recibida y enviada por WebSocket: %+v", cita)
 }

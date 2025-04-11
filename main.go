@@ -12,37 +12,47 @@ import (
 )
 
 func main() {
-	// Inicializar la conexión a la base de datos
+	// Inicializar conexiones
 	core.InitDB()
-
-	// Inicializar RabbitMQ
 	core.InitRabbitMQ()
+	defer core.CloseChannels()
 
-	// Ejecutar el consumidor de RabbitMQ en una goroutine
-	go func() {
-		err := core.ConsumeMessages("citas_creadas", application.ProcessCitaMessage)
-		if err != nil {
-			log.Fatalf("Error al consumir mensajes: %v", err)
-		}
-	}()
+	// Configurar WebSocket Hub
+	hub := infrastructure.NewHub()
+	go hub.Run()
 
-	// Crear un router con Gin
+	// Crear router Gin
 	router := gin.Default()
 
-	// Configuración de CORS
+	// Configurar CORS para WebSocket
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // Ajusta el puerto según sea necesario
+		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
 
-	// Inicializar dependencias
+	// Registrar rutas REST
 	citaRouter := infrastructure.NewCitaRouter(router)
-	citaRouter.Run() // Agregar rutas
+	citaRouter.Run()
 
-	// Iniciar el servidor
-	log.Println("Servidor corriendo en http://localhost:8001")
+	// Registrar ruta WebSocket
+	router.GET("/ws", func(c *gin.Context) {
+		hub.HandleWebSocket(c)
+	})
+
+	// Iniciar consumidor RabbitMQ con WebSocket
+	go func() {
+		err := core.ConsumeMessages("citas_creadas", func(body []byte) {
+			application.ProcessCitaMessage(body, hub) // Pasamos el hub aquí
+		})
+		if err != nil {
+			log.Fatalf("Error al consumir mensajes: %v", err)
+		}
+	}()
+
+	// Iniciar servidor
+	log.Println("Servidor iniciado en :8001")
 	if err := router.Run(":8001"); err != nil {
 		log.Fatal("Error al iniciar el servidor:", err)
 	}
